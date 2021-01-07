@@ -1,0 +1,2 @@
+# sh script files should have linux fileendings.
+*.sh text eol=lf
