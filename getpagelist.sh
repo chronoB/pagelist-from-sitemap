@@ -3,17 +3,19 @@
 filename="not set"
 outputdir="data"
 websitename="not set"
+test="not set"
 
-while getopts f:o:w: flag;
+while getopts f:o:w:t flag;
 do
     case "${flag}" in
         f) filename=${OPTARG};;
         o) outputdir=${OPTARG};;
         w) websitename=${OPTARG};;
+        t) test="set";;
     esac
 done
 
-if [ "$filename" = "not set"  ] && [ "$websitename" = "not set"  ];
+if [ "$filename" = "not set"  ] && [ "$websitename" = "not set" ] && [ "$test" = "not set" ] ;
 then
     echo -e "\e[31mfilename and websitename not set. abort. Use the -f and -w parameter \e[0m" >&2
     exit 1
@@ -68,17 +70,22 @@ create_dir(){
 }
 
 curlSitemap(){
-    curlPage "$1/sitemap.xml" -o "$2/sitemap.xml"
-    echo $?
+    err=$(curlPage "$1/sitemap.xml" "$2/sitemap.xml")
+    exit $?
 }
 
 curlPage(){
-    curl -L "$1" -o "$2"
-    echo $?
+    err=$(curl -m 60 -L "$1" -o "$2")
+    exit $?
 }
 
 forceHttps(){
     echo "https://$1"
+}
+
+checkIfSitemapIsValid(){
+    #ToDo: check if file has correct xml format
+    exit 0
 }
 
 getSitemap (){
@@ -91,11 +98,16 @@ getSitemap (){
     #creating directory
     directory=$(create_dir "$cleanWebsite")
 
-    err=$(curlSitemap "$httpsWebsitename" "$directory")
-    if [ $err -eq 1 ];
+    $(curlSitemap "$httpsWebsitename" "$directory")
+    err=$?
+    if [[ $err -eq 1 ]]
     then
         echo -e "\e[31mError while fetching sitemap. Are you sure there is a sitemap?\e[0m" >&2
+    elif [[ $err -eq 28 ]]
+    then
+        echo -e "\e[31mTimeout while fetching sitemap for $httpsWebsitename.\e[0m" >&2
     else
+        $(checkIfSitemapIsValid "$directory")
         getURLs "$directory" "$directory/sitemap.xml" "$directory/urls.txt"
     fi
 
@@ -123,6 +135,12 @@ fi
 if [ "$websitename" != "not set"  ];
 then
     getSitemap $websitename
+fi
+
+if [ "$test" != "not set" ];
+then
+    # Use this to test functions directly
+    exit 1
 fi
 
 exit 0
