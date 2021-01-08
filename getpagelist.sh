@@ -38,11 +38,18 @@ cleanWebsite(){
 
 getURLs (){
     while read_dom; do
+        if [[ $ENTITY = "sitemap" ]]; then
+            curlPage "$CONTENT" "$1/$CONTENT"
+            getURLs "$1/$CONTENT" "$3"
+        fi
+    done < $2
+
+    while read_dom; do
         if [[ $ENTITY = "url" ]]; then
             echo $CONTENT
             exit
         fi
-    done < $1 > $2
+    done < $2 > $3
 }
 
 #function to parse the xml
@@ -61,7 +68,12 @@ create_dir(){
 }
 
 curlSitemap(){
-    curl -L "$1/sitemap.xml" -o "$2/sitemap.xml"
+    curlPage "$1/sitemap.xml" -o "$2/sitemap.xml"
+    echo $?
+}
+
+curlPage(){
+    curl -L "$1" -o "$2"
     echo $?
 }
 
@@ -77,13 +89,16 @@ getSitemap (){
 
     printf "Crawling: $httpsWebsitename\n"
     #creating directory
-    directory=$(create_dir $cleanWebsite)
+    directory=$(create_dir "$cleanWebsite")
 
     err=$(curlSitemap "$httpsWebsitename" "$directory")
     if [ $err -eq 1 ];
     then
         echo -e "\e[31mError while fetching sitemap. Are you sure there is a sitemap?\e[0m" >&2
+    else
+        getURLs "$directory" "$directory/sitemap.xml" "$directory/urls.txt"
     fi
+
 }
 
 # ---------------------------------------------------------------
