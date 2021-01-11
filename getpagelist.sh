@@ -28,6 +28,8 @@ fi
 
 # ---------------------------------------------------------------
 
+# removes http(s) because we will enforce https later on
+# strips linebreaks etc from the file input
 cleanWebsite(){
     strippedString=$1
     if [[ $1 =~ ^(http:) ]] || [[ $1 =~ ^(https:) ]];
@@ -38,6 +40,7 @@ cleanWebsite(){
     echo $CLEAN
 }
 
+#create the directory were the data will be stored for the specific website
 create_dir(){
     n=$((n+1))
     mkdir -p "$outputdir/urls/"
@@ -46,22 +49,21 @@ create_dir(){
     echo $direc
 }
 
-curlSitemap(){
-    err=$(curlPage "$1/sitemap.xml" "$2/sitemap.xml")
-    exit $?
-}
-
+#curl specified page
 curlPage(){
+    #timeout after 60 sec. follow redirects. output to $2
     err=$(curl -m 60 -L "$1" -o "$2")
     exit $?
 }
 
+#add https:// to the url. possible because cleanWebsite removes every protocol
 forceHttps(){
     echo "https://$1"
 }
 
-
+#functionality to grab the sitemap of the given url and retrieve all urls from it
 getSitemap (){
+
     cleanWebsite=$(cleanWebsite "$1")
     printf "Crawling: $cleanWebsite\n"
 
@@ -71,7 +73,7 @@ getSitemap (){
     #creating directory
     directory=$(create_dir "$cleanWebsite")
 
-    $(curlSitemap "$httpsWebsitename" "$directory")
+    $(curlPage "$httpsWebsitename/sitemap.xml" "$directory/sitemap.xml")
     err=$?
     if [[ $err -eq 1 ]]
     then
@@ -86,15 +88,20 @@ getSitemap (){
 
 }
 
+#recursivly going through the sitemaps and getting all the urls
 getURLs (){
     $(checkIfSitemapIsInvalid "$2")
     err=$?
     if [[ $err -eq 1 ]];
     then
+        #if the sitemap link fetches the index page, only save the indexpage and exit afterwards
         endpoint=$(echo $1| cut -d'/' -f 3-)
         echo "https://$endpoint" > $1/urls.txt
         exit
     fi
+    #remove the namespace from the xml file because xmlstarlet won't output anything otherwise
+    #the namespace is not important for us
+    #fetching all the sitemaps (if there are any) and recursivly calling this function with the new sitemap
     sitemaps=$(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//sitemap/loc")
     for item in $sitemaps
     do
@@ -103,9 +110,12 @@ getURLs (){
         err=$(getURLs "$1" "$1/$endpoint")
     done
 
+    #get all the urls in a sitemap and append them to the urls.txt file
     $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/urls.txt)
 }
 
+# if the doctype html is found it is not a xml file (suprise)
+# if the sitemap.xml was not found the curl command will get the index page of the website, so this will prevent errors
 checkIfSitemapIsInvalid (){
     case `grep -F "!doctype html" "$1" >/dev/null; echo $?` in
         0)
