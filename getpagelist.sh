@@ -38,29 +38,6 @@ cleanWebsite(){
     echo $CLEAN
 }
 
-getURLs (){
-    while read_dom; do
-        if [[ $ENTITY = "sitemap" ]]; then
-            curlPage "$CONTENT" "$1/$CONTENT"
-            getURLs "$1/$CONTENT" "$3"
-        fi
-    done < $2
-
-    while read_dom; do
-        if [[ $ENTITY = "url" ]]; then
-            echo $CONTENT
-            exit
-        fi
-    done < $2 > $3
-}
-
-#function to parse the xml
-# see https://stackoverflow.com/questions/893585/how-to-parse-xml-in-bash
-read_dom () {
-    local IFS=\>
-    read -d \< ENTITY CONTENT
-}
-
 create_dir(){
     n=$((n+1))
     mkdir -p "$outputdir/urls/"
@@ -83,10 +60,6 @@ forceHttps(){
     echo "https://$1"
 }
 
-checkIfSitemapIsValid(){
-    #ToDo: check if file has correct xml format
-    exit 0
-}
 
 getSitemap (){
     cleanWebsite=$(cleanWebsite "$1")
@@ -107,10 +80,47 @@ getSitemap (){
     then
         echo -e "\e[31mTimeout while fetching sitemap for $httpsWebsitename.\e[0m" >&2
     else
-        $(checkIfSitemapIsValid "$directory")
-        getURLs "$directory" "$directory/sitemap.xml" "$directory/urls.txt"
+        rm $directory/urls.txt
+        $(getURLs "$directory" "$directory/sitemap.xml")
     fi
 
+}
+
+getURLs (){
+    $(checkIfSitemapIsInvalid "$2")
+    err=$?
+    if [[ $err -eq 1 ]];
+    then
+        endpoint=$(echo $1| cut -d'/' -f 3-)
+        echo "https://$endpoint" > $1/urls.txt
+        exit
+    fi
+    sitemaps=$(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//sitemap/loc")
+    for item in $sitemaps
+    do
+        endpoint=$(echo $item| cut -d'/' -f 4-)
+        $(curlPage "$item" "$1/$endpoint")
+        err=$(getURLs "$1" "$1/$endpoint")
+    done
+
+    $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/urls.txt)
+}
+
+checkIfSitemapIsInvalid (){
+    case `grep -F "!doctype html" "$1" >/dev/null; echo $?` in
+        0)
+            # code if found
+            exit 1
+            ;;
+        1)
+            # code if not found
+            exit 0
+            ;;
+        *)
+            # code if an error occurred
+            exit 0
+            ;;
+    esac
 }
 
 # ---------------------------------------------------------------
