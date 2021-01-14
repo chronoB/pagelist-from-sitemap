@@ -114,6 +114,7 @@ getURLs (){
 
     #get all the urls in a sitemap and append them to the urls.txt file
     $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/urls.txt)
+    $(echo >> $directory/urls.txt)
     if [ "$saveSitemaps" == "not set" ];
     then
         $(rm "$2")
