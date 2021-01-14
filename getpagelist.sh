@@ -105,7 +105,7 @@ getURLs (){
     sitemaps=$(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//sitemap/loc")
     for item in $sitemaps
     do
-        endpoint=$(echo $item| cut -d'/' -f 4-)
+        endpoint=$(echo $item | rev | cut -d'/' -f 1 | rev)
         $(curlPage "$item" "$1/$endpoint")
         err=$(getURLs "$1" "$1/$endpoint")
     done
