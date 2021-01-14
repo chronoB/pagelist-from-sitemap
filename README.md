@@ -23,6 +23,7 @@ with the following options:
 | o      | output directory where the sitemaps and urls will be stored         |
 | f      | file containing the urls of the websites. can't be used with w flag |
 | w      | add a website that should be crawled. can't be used with f flag     |
+| s      | save the sitemaps that get crawled when getting the urls.           |
 | t      | for testing purposes only.                                          |
 
 ---
