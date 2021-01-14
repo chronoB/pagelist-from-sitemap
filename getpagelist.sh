@@ -4,14 +4,16 @@ filename="not set"
 outputdir="data"
 websitename="not set"
 test="not set"
+saveSitemaps="not set"
 
-while getopts f:o:w:t flag;
+while getopts f:o:w:ts flag;
 do
     case "${flag}" in
         f) filename=${OPTARG};;
         o) outputdir=${OPTARG};;
         w) websitename=${OPTARG};;
         t) test="set";;
+        s) saveSitemaps="set";;
     esac
 done
 
@@ -112,6 +114,11 @@ getURLs (){
 
     #get all the urls in a sitemap and append them to the urls.txt file
     $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/urls.txt)
+    $(echo >> $directory/urls.txt)
+    if [ "$saveSitemaps" == "not set" ];
+    then
+        $(rm "$2")
+    fi
 }
 
 # if the doctype html is found it is not a xml file (suprise)
@@ -162,5 +169,7 @@ then
     # Use this to test functions directly
     exit 1
 fi
+
+
 
 exit 0
