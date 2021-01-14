@@ -84,9 +84,14 @@ getSitemap (){
     then
         echo -e "\e[31mTimeout while fetching sitemap for $httpsWebsitename.\e[0m" >&2
     else
+        rm $directory/tmp.txt
         rm $directory/urls.txt
         $(getURLs "$directory" "$directory/sitemap.xml")
     fi
+    #remove all duplicate urls
+    $(sort $directory/tmp.txt | uniq > $directory/urls.txt )
+    #remove empty first line
+    $(sed -i 1d $directory/urls.txt)
 
 }
 
@@ -113,8 +118,8 @@ getURLs (){
     done
 
     #get all the urls in a sitemap and append them to the urls.txt file
-    $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/urls.txt)
-    $(echo >> $directory/urls.txt)
+    $(cat "$2" | sed 's/ xmlns=".*"//g' | xmlstarlet sel -t -v "//url/loc" >> $directory/tmp.txt)
+    $(echo "" >> $directory/tmp.txt)
     if [ "$saveSitemaps" == "not set" ];
     then
         $(rm "$2")
@@ -169,7 +174,6 @@ then
     # Use this to test functions directly
     exit 1
 fi
-
 
 
 exit 0
